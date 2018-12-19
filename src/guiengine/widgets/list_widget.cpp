@@ -529,17 +529,17 @@ EventPropagation ListWidget::transmitEvent(Widget* w,
 
 EventPropagation ListWidget::upPressed(const int playerID)
 {
-    return moveToNextItem(/*reverse*/ true);
+    return moveToNextItem(/*reverse*/ true, 1);
 } // upPressed
 
 // -----------------------------------------------------------------------------
 
 EventPropagation ListWidget::downPressed(const int playerID)
 {
-    return moveToNextItem(/*reverse*/ false);
+    return moveToNextItem(/*reverse*/ false, 1);
 } // downPressed
 
-EventPropagation ListWidget::moveToNextItem(const bool reverse)
+EventPropagation ListWidget::moveToNextItem(const bool reverse, const int distance)
 {
     // if widget is deactivated, do nothing
     if (m_deactivated) return EVENT_BLOCK;

@@ -262,7 +262,7 @@ namespace GUIEngine
         virtual EventPropagation downPressed(const int playerID);
 
         /** \brief implement common core parts of upPressed and downPressed */ 
-        EventPropagation moveToNextItem(const bool down);
+        EventPropagation moveToNextItem(const bool down, const int distance);
         
         void setColumnListener(IListWidgetHeaderListener* listener)
         {
