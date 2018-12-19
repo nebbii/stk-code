@@ -547,6 +547,22 @@ EventPropagation ListWidget::downPressed(const int playerID)
     return moveToNextItem(/*reverse*/ false, 1);
 } // downPressed
 
+// -----------------------------------------------------------------------------
+
+EventPropagation ListWidget::pageUpPressed(const int playerID)
+{
+    return moveToNextItem(/*reverse*/ true, 10);
+} // upPressed
+
+// -----------------------------------------------------------------------------
+
+EventPropagation ListWidget::pageDownPressed(const int playerID)
+{
+    return moveToNextItem(/*reverse*/ false, 10);
+} // downPressed
+
+// -----------------------------------------------------------------------------
+
 EventPropagation ListWidget::moveToNextItem(const bool reverse, const int distance)
 {
     // if widget is deactivated, do nothing
