@@ -221,6 +221,14 @@ namespace ServerConfig
         "validating-player, auto-end, strict-player and owner-less will be "
         "turned on."));
 
+    SERVER_CFG_PREFIX BoolServerConfigParam m_server_configurable
+        SERVER_CFG_DEFAULT(BoolServerConfigParam(false, "server-configurable",
+        "If true, the server owner can config the difficulty and game mode in "
+        "the GUI of lobby. This option cannot be used with owner-less or "
+        "grand prix server, and will be automatically turned on if the server "
+        "was created using the in-game GUI. The changed difficulty and game "
+        "mode will not be saved in this config file."));
+
     SERVER_CFG_PREFIX FloatServerConfigParam m_flag_return_timemout
         SERVER_CFG_DEFAULT(FloatServerConfigParam(20.0f, "flag-return-timemout",
         "Time in seconds when a flag is dropped a by player in CTF "
@@ -279,6 +287,14 @@ namespace ServerConfig
         "kick-high-ping-players",
         "Kick players whose ping is above max-ping."));
 
+    SERVER_CFG_PREFIX IntServerConfigParam m_kick_idle_player_seconds
+        SERVER_CFG_DEFAULT(IntServerConfigParam(60,
+        "kick-idle-player-seconds",
+        "Kick idle player which has no network activity to server for more "
+        "than some seconds during game, unless he has finished the race. "
+        "Negative value to disable, and this option will always be disabled "
+        "for LAN server."));
+
     SERVER_CFG_PREFIX StringToUIntServerConfigParam m_server_ip_ban_list
         SERVER_CFG_DEFAULT(StringToUIntServerConfigParam("server-ip-ban-list",
         "ip: IP in X.X.X.X/Y (CIDR) format for banning, use Y of 32 for a "
@@ -308,7 +324,10 @@ namespace ServerConfig
     void writeServerConfigToDisk();
     // ------------------------------------------------------------------------
     std::pair<RaceManager::MinorRaceModeType, RaceManager::MajorRaceModeType>
-        getLocalGameMode();
+        getLocalGameModeFromConfig();
+    // ------------------------------------------------------------------------
+    std::pair<RaceManager::MinorRaceModeType, RaceManager::MajorRaceModeType>
+        getLocalGameMode(int mode);
     // ------------------------------------------------------------------------
     core::stringw getModeName(unsigned id);
     // ------------------------------------------------------------------------

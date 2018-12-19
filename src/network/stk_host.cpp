@@ -326,6 +326,7 @@ void STKHost::init()
  */
 STKHost::~STKHost()
 {
+    NetworkConfig::get()->clearActivePlayersForClient();
     requestShutdown();
     if (m_network_console.joinable())
         m_network_console.join();
@@ -758,18 +759,35 @@ void STKHost::mainLoop()
                         p.second->getPing();
                     const unsigned ap = p.second->getAveragePing();
                     const unsigned max_ping = ServerConfig::m_max_ping;
-                    if (ServerConfig::m_kick_high_ping_players &&
-                        p.second->isValidated() &&
+                    if (p.second->isValidated() &&
                         p.second->getConnectedTime() > 5.0f && ap > max_ping)
                     {
-                        Log::info("STKHost", "%s with ping %d is higher than"
-                            " %d ms, kick.",
-                            p.second->getAddress().toString().c_str(),
-                            ap, max_ping);
-                        std::lock_guard<std::mutex> lock(m_enet_cmd_mutex);
-                        m_enet_cmd.emplace_back(p.second->getENetPeer(),
-                            (ENetPacket*)NULL, PDI_BAD_CONNECTION,
-                            ECT_DISCONNECT);
+                        if (ServerConfig::m_kick_high_ping_players &&
+                            !p.second->isDisconnected())
+                        {
+                            Log::info("STKHost", "%s with ping %d is higher"
+                                " than %d ms, kick.",
+                                p.second->getAddress().toString().c_str(),
+                                ap, max_ping);
+                            p.second->setWarnedForHighPing(true);
+                            p.second->setDisconnected(true);
+                            std::lock_guard<std::mutex> lock(m_enet_cmd_mutex);
+                            m_enet_cmd.emplace_back(p.second->getENetPeer(),
+                                (ENetPacket*)NULL, PDI_BAD_CONNECTION,
+                                ECT_DISCONNECT);
+                        }
+                        else if (!p.second->hasWarnedForHighPing())
+                        {
+                            Log::info("STKHost", "%s with ping %d is higher"
+                                " than %d ms.",
+                                p.second->getAddress().toString().c_str(),
+                                ap, max_ping);
+                            p.second->setWarnedForHighPing(true);
+                            NetworkString msg(PROTOCOL_LOBBY_ROOM);
+                            msg.setSynchronous(true);
+                            msg.addUInt8(LobbyProtocol::LE_BAD_CONNECTION);
+                            p.second->sendPacket(&msg, /*reliable*/true);
+                        }
                     }
                 }
                 BareNetworkString ping_packet;
@@ -778,6 +796,17 @@ void STKHost::mainLoop()
                 ping_packet.addUInt8((uint8_t)m_peer_pings.getData().size());
                 for (auto& p : m_peer_pings.getData())
                     ping_packet.addUInt32(p.first).addUInt32(p.second);
+                if (sl)
+                {
+                    auto progress = sl->getGameStartedProgress();
+                    ping_packet.addUInt32(progress.first)
+                        .addUInt32(progress.second);
+                }
+                else
+                {
+                    ping_packet.addUInt32(std::numeric_limits<uint32_t>::max())
+                        .addUInt32(std::numeric_limits<uint32_t>::max());
+                }
                 ping_packet.getBuffer().insert(
                     ping_packet.getBuffer().begin(), g_ping_packet.begin(),
                     g_ping_packet.end());
@@ -848,12 +877,12 @@ void STKHost::mainLoop()
         bool need_ping_update = false;
         while (enet_host_service(host, &event, 10) != 0)
         {
+            auto lp = LobbyProtocol::get<LobbyProtocol>();
             if (!is_server &&
                 last_ping_time_update_for_client < StkTime::getRealTimeMs())
             {
                 last_ping_time_update_for_client =
                     StkTime::getRealTimeMs() + 2000;
-                auto lp = LobbyProtocol::get<LobbyProtocol>();
                 if (lp && lp->isRacing())
                 {
                     auto p = getServerPeerForClient();
@@ -932,7 +961,20 @@ void STKHost::mainLoop()
                         const uint32_t client_ping =
                             peer_pings.find(m_host_id) != peer_pings.end() ?
                             peer_pings.at(m_host_id) : 0;
-
+                        uint32_t remaining_time =
+                            std::numeric_limits<uint32_t>::max();
+                        uint32_t progress =
+                            std::numeric_limits<uint32_t>::max();
+                        try
+                        {
+                            remaining_time = ping_packet.getUInt32();
+                            progress = ping_packet.getUInt32();
+                        }
+                        catch (std::exception& e)
+                        {
+                            // For old server
+                            Log::debug("STKHost", "%s", e.what());
+                        }
                         if (client_ping > 0)
                         {
                             assert(m_nts);
@@ -945,6 +987,11 @@ void STKHost::mainLoop()
                             m_peer_pings.unlock();
                             m_client_ping.store(client_ping,
                                 std::memory_order_relaxed);
+                            if (lp)
+                            {
+                                lp->setGameStartedProgress(
+                                    std::make_pair(remaining_time, progress));
+                            }
                         }
                     }
                     enet_packet_destroy(event.packet);
@@ -1031,8 +1078,8 @@ void STKHost::handleDirectSocketRequest(Network* direct_socket,
         s.addUInt8((uint8_t)(sl->getGameSetup()->getPlayerCount() +
             sl->getWaitingPlayersCount()));
         s.addUInt16(m_private_port);
-        s.addUInt8((uint8_t)ServerConfig::m_server_difficulty);
-        s.addUInt8((uint8_t)ServerConfig::m_server_mode);
+        s.addUInt8((uint8_t)sl->getDifficulty());
+        s.addUInt8((uint8_t)sl->getGameMode());
         s.addUInt8(!pw.empty());
         s.addUInt8((uint8_t)
             (sl->getCurrentState() == ServerLobby::WAITING_FOR_START_GAME ?
