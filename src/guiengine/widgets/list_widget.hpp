@@ -261,6 +261,12 @@ namespace GUIEngine
         /** \brief implementing method from base class Widget */
         virtual EventPropagation downPressed(const int playerID);
 
+        /** \brief implementing method from base class Widget */
+        virtual EventPropagation pageUpPressed(const int playerID);
+        
+        /** \brief implementing method from base class Widget */
+        virtual EventPropagation pageDownPressed(const int playerID);
+
         /** \brief implement common core parts of upPressed and downPressed */ 
         EventPropagation moveToNextItem(const bool down, const int distance);
         
