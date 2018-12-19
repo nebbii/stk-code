@@ -550,9 +550,9 @@ EventPropagation ListWidget::moveToNextItem(const bool reverse, const int distan
     if (stay_within_list)
     {
         if (reverse)
-            setSelectionID(getSelectionID() - 1);
+            setSelectionID(getSelectionID() - distance);
         else
-            setSelectionID(getSelectionID() + 1);
+            setSelectionID(getSelectionID() + distance);
         return EVENT_BLOCK_BUT_HANDLED;
     }
     else
